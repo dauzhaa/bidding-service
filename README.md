@@ -62,60 +62,59 @@
 
 ```bash
 docker-compose up -d
+```
 
 2. Инициализация БД
 
 Необходимо создать таблицы в PostgreSQL (выполняется один раз):
-Bash
-
+```Bash
 # Таблица для аукционов
 sudo docker exec -i goproject-postgres-shard-1-1 psql -U user -d auction_db_1 -c "CREATE TABLE IF NOT EXISTS auctions (id BIGINT PRIMARY KEY, title TEXT, artist TEXT, start_price BIGINT, image_url TEXT, status TEXT);"
 
 # Таблица для ставок (если требуется)
 sudo docker exec -i goproject-postgres-shard-1-1 psql -U user -d auction_db_1 -c "CREATE TABLE IF NOT EXISTS bids (id SERIAL PRIMARY KEY, auction_id BIGINT, user_id BIGINT, amount BIGINT, created_at TIMESTAMP);"
+```
 
 3. Запуск микросервисов
 
 Рекомендуется открывать разные терминалы для каждого сервиса, чтобы видеть логи в реальном времени.
 
 Терминал 1 (Сервис ставок):
-Bash
-
+```Bash
 make run-bidding
+```
 
 Терминал 2 (Сервис аукционов):
-Bash
-
+```Bash
 make run-auction
+```
 
 Терминал 3 (Сервис уведомлений):
-Bash
-
+```Bash
 make run-notification
+```
 
 Терминал 4 (API Gateway):
-Bash
-
+```Bash
 make run-gateway
+```
 
 🧪 Тестирование API (Demo)
 1. Создание аукциона
 
 Создадим лот на основе картины Клода Моне "Букет подсолнухов" (ID музея: 436121):
-Bash
-
+```Bash
 curl -X POST http://localhost:8081/v1/auctions \
   -d '{"object_id": 436121, "start_price": 5000}'
-
+```
 
 2. Размещение ставки
 
 Сделаем ставку на созданный лот:
-Bash
-
+```Bash
 curl -X POST http://localhost:8081/v1/bids \
   -d '{"auction_id": 436121, "user_id": 1, "amount": 6000}'
-
+```
 
 📚 Документация и Swagger UI
 
