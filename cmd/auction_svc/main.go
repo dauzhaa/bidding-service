@@ -15,10 +15,17 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return fallback
+}
+
 func main() {
 	ctx := context.Background()
 
-	dsn := "postgres://user:password@localhost:5432/auction_db_1"
+	dsn := getEnv("DB_SHARD_1_DSN", "postgres://user:password@localhost:5432/auction_db_1")
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v", err)

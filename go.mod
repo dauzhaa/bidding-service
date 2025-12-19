@@ -1,6 +1,6 @@
 module github.com/students-api/bidding-service
 
-go 1.25.5
+go 1.24.0
 
 require (
 	github.com/IBM/sarama v1.46.3

@@ -40,7 +40,7 @@ func (c *Consumer) StartConsume(topic string) {
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 
-	log.Printf("📨 Notification Service listening on topic: %s", topic)
+	log.Printf("Notification Service listening on topic: %s", topic)
 
 	for {
 		select {
@@ -53,7 +53,7 @@ func (c *Consumer) StartConsume(topic string) {
 			}
 
 			log.Println("---------------------------------------------------")
-			log.Printf("🔔 НОВОЕ УВЕДОМЛЕНИЕ!")
+			log.Printf("НОВОЕ УВЕДОМЛЕНИЕ!")
 			log.Printf("Кому: Пользователь ID %d", event.UserID)
 			log.Printf("Текст: Поздравляем! Ваша ставка %d у.е. на аукцион #%d принята.", event.Amount, event.AuctionID)
 			log.Printf("Тех. инфо: Offset %d, EventID %s", msg.Offset, event.EventID)

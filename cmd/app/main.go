@@ -18,26 +18,35 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+func getEnv(key, fallback string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return fallback
+}
+
 func main() {
 	ctx := context.Background()
 
-	redisStore := redis_storage.NewRedisStorage("localhost:6379")
-	log.Println("Connected to Redis")
+	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
+	redisStore := redis_storage.NewRedisStorage(redisAddr)
+	log.Printf("Connected to Redis at %s", redisAddr)
 
-	producer, err := kafka.NewProducer([]string{"localhost:9092"})
+	kafkaAddr := getEnv("KAFKA_ADDR", "localhost:9092")
+	producer, err := kafka.NewProducer([]string{kafkaAddr})
 	if err != nil {
 		log.Fatalf("Failed to initialize Kafka producer: %v", err)
 	}
 	defer producer.Close()
 
-	dsn1 := "postgres://user:password@localhost:5432/auction_db_1"
+	dsn1 := getEnv("DB_SHARD_1_DSN", "postgres://user:password@localhost:5432/auction_db_1")
 	pool1, err := pgxpool.New(ctx, dsn1)
 	if err != nil {
 		log.Fatalf("Unable to connect to shard 1: %v", err)
 	}
 	defer pool1.Close()
 
-	dsn2 := "postgres://user:password@localhost:5433/auction_db_2"
+	dsn2 := getEnv("DB_SHARD_2_DSN", "postgres://user:password@localhost:5433/auction_db_2")
 	pool2, err := pgxpool.New(ctx, dsn2)
 	if err != nil {
 		log.Fatalf("Unable to connect to shard 2: %v", err)

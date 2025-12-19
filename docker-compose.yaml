@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
@@ -60,6 +58,52 @@ services:
       - "5433:5432"
     volumes:
       - pgdata2:/var/lib/postgresql/data
+
+  bidding-service:
+    build: .
+    command: ["./bidding_svc"]
+    ports:
+      - "50051:50051"
+    environment:
+      - REDIS_ADDR=redis:6379
+      - KAFKA_ADDR=kafka:29092
+      - DB_SHARD_1_DSN=postgres://user:password@postgres-shard-1:5432/auction_db_1
+      - DB_SHARD_2_DSN=postgres://user:password@postgres-shard-2:5432/auction_db_2
+    depends_on:
+      - postgres-shard-1
+      - postgres-shard-2
+      - redis
+      - kafka
+
+  auction-service:
+    build: .
+    command: ["./auction_svc"]
+    ports:
+      - "50052:50052"
+    environment:
+      - DB_SHARD_1_DSN=postgres://user:password@postgres-shard-1:5432/auction_db_1
+    depends_on:
+      - postgres-shard-1
+
+  notification-service:
+    build: .
+    command: ["./notification_svc"]
+    environment:
+      - KAFKA_ADDR=kafka:29092
+    depends_on:
+      - kafka
+
+  gateway-service:
+    build: .
+    command: ["./gateway_svc"]
+    ports:
+      - "8081:8081"
+    environment:
+      - BIDDING_SVC_ADDR=bidding-service:50051
+      - AUCTION_SVC_ADDR=auction-service:50052
+    depends_on:
+      - bidding-service
+      - auction-service
 
 volumes:
   pgdata1:
