@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package bidding_api;
+
+option go_package = "github.com/students-api/bidding-service/internal/pb/bidding_api";
+
+service BiddingService {
+  // Попробовать сделать ставку
+  rpc PlaceBid(PlaceBidRequest) returns (PlaceBidResponse);
+
+  rpc GetAuctionState(GetAuctionStateRequest) returns (GetAuctionStateResponse);
+}
+
+message PlaceBidRequest {
+  int64 auction_id = 1;
+  int64 user_id = 2;
+  int64 amount = 3;
+}
+
+message PlaceBidResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetAuctionStateRequest {
+  int64 auction_id = 1;
+}
+
+message GetAuctionStateResponse {
+  int64 auction_id = 1;
+  int64 current_max_bid = 2;
+  int64 winner_id = 3;
+}
