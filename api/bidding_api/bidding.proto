@@ -2,13 +2,23 @@ syntax = "proto3";
 
 package bidding_api;
 
+import "google/api/annotations.proto";
+
 option go_package = "github.com/students-api/bidding-service/internal/pb/bidding_api";
 
 service BiddingService {
-  // Попробовать сделать ставку
-  rpc PlaceBid(PlaceBidRequest) returns (PlaceBidResponse);
+  rpc PlaceBid(PlaceBidRequest) returns (PlaceBidResponse) {
+    option (google.api.http) = {
+      post: "/v1/bids"
+      body: "*"
+    };
+  }
 
-  rpc GetAuctionState(GetAuctionStateRequest) returns (GetAuctionStateResponse);
+  rpc GetAuctionState(GetAuctionStateRequest) returns (GetAuctionStateResponse) {
+    option (google.api.http) = {
+      get: "/v1/auctions/{auction_id}/state"
+    };
+  }
 }
 
 message PlaceBidRequest {
@@ -27,7 +37,6 @@ message GetAuctionStateRequest {
 }
 
 message GetAuctionStateResponse {
-  int64 auction_id = 1;
-  int64 current_max_bid = 2;
-  int64 winner_id = 3;
+  int64 current_max_bid = 1;
+  int64 winner_id = 2;
 }

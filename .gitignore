@@ -1,4 +1,4 @@
-# Binaries
+
 /bin/
 /dist/
 *.exe
@@ -7,19 +7,14 @@
 *.so
 *.dylib
 
-# Test binary
 *.test
 
-# Output of the go coverage tool
 *.out
 
-# IDE specifics
 .idea/
 .vscode/
 *.swp
 
-# OS specifics
 .DS_Store
 
-# Vendor (если не используем vendor mode, обычно не комитим)
 vendor/

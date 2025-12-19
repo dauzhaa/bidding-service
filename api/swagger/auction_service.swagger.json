@@ -1,0 +1,183 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "auction.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "AuctionService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/auctions": {
+      "get": {
+        "operationId": "AuctionService_ListAuctions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/auction_apiListAuctionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "AuctionService"
+        ]
+      },
+      "post": {
+        "operationId": "AuctionService_CreateAuction",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/auction_apiCreateAuctionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/auction_apiCreateAuctionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuctionService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "auction_apiAuction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "artist": {
+          "type": "string"
+        },
+        "currentPrice": {
+          "type": "string",
+          "format": "int64"
+        },
+        "imageUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "auction_apiCreateAuctionRequest": {
+      "type": "object",
+      "properties": {
+        "objectId": {
+          "type": "string",
+          "format": "int64"
+        },
+        "startPrice": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "auction_apiCreateAuctionResponse": {
+      "type": "object",
+      "properties": {
+        "auctionId": {
+          "type": "string",
+          "format": "int64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "artist": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "auction_apiListAuctionsResponse": {
+      "type": "object",
+      "properties": {
+        "auctions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/auction_apiAuction"
+          }
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}
