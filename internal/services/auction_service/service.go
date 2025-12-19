@@ -2,51 +2,81 @@ package auction_service
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
+	"net/http"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/students-api/bidding-service/internal/integration/metmuseum"
 	"github.com/students-api/bidding-service/internal/pb/auction_api"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-type Implementation struct {
+type AuctionService struct {
 	auction_api.UnimplementedAuctionServiceServer
-	metClient *metmuseum.Client
-	dbShard1  *pgxpool.Pool
+	repo   AuctionRepository
+	APIURL string
 }
 
-func NewAuctionService(db *pgxpool.Pool) *Implementation {
-	return &Implementation{
-		metClient: metmuseum.NewClient(),
-		dbShard1:  db,
+func NewAuctionService(repo AuctionRepository) *AuctionService {
+	return &AuctionService{
+		repo:   repo,
+		APIURL: "https://collectionapi.metmuseum.org/public/collection/v1/objects",
 	}
 }
 
-func (s *Implementation) CreateAuction(ctx context.Context, req *auction_api.CreateAuctionRequest) (*auction_api.CreateAuctionResponse, error) {
-	data, err := s.metClient.GetObjectData(req.ObjectId)
+type MetObject struct {
+	ObjectID     int    `json:"objectID"`
+	Title        string `json:"title"`
+	Artist       string `json:"artistDisplayName"`
+	PrimaryImage string `json:"primaryImage"`
+}
+
+func (s *AuctionService) CreateAuction(ctx context.Context, req *auction_api.CreateAuctionRequest) (*auction_api.Auction, error) {
+	url := fmt.Sprintf("%s/%d", s.APIURL, req.ObjectId)
+	
+	resp, err := http.Get(url)
 	if err != nil {
-		log.Printf("Error fetching from Met Museum: %v", err)
+		return nil, fmt.Errorf("failed to fetch from Met API: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Met API returned status: %d", resp.StatusCode)
+	}
+
+	var metObj MetObject
+	if err := json.NewDecoder(resp.Body).Decode(&metObj); err != nil {
+		return nil, fmt.Errorf("failed to decode Met API response: %v", err)
+	}
+
+	auction := &auction_api.Auction{
+		Id:           int64(metObj.ObjectID),
+		Title:        metObj.Title,
+		Artist:       metObj.Artist,
+		CurrentPrice: req.StartPrice,
+		ImageUrl:     metObj.PrimaryImage,
+	}
+
+	if auction.Title == "" {
+		auction.Title = "Unknown Title"
+	}
+	if auction.Artist == "" {
+		auction.Artist = "Unknown Artist"
+	}
+
+	err = s.repo.CreateAuction(ctx, auction)
+	if err != nil {
+		log.Printf("Failed to create auction in DB: %v", err)
 		return nil, err
 	}
 
-	log.Printf("Creating auction for: %s by %s", data.Title, data.Artist)
-	
-	query := `INSERT INTO auctions (id, title, artist, start_price, image_url, status) VALUES ($1, $2, $3, $4, $5, 'active') RETURNING id`
-	
-	_, err = s.dbShard1.Exec(ctx, query, data.ObjectID, data.Title, data.Artist, req.StartPrice, data.PrimaryImage)
-	if err != nil {
-		log.Printf("Failed to insert auction: %v", err)
-		return nil, err
-	}
-
-	return &auction_api.CreateAuctionResponse{
-		AuctionId: data.ObjectID,
-		Title:     data.Title,
-		Artist:    data.Artist,
-		ImageUrl:  data.PrimaryImage,
-	}, nil
+	return auction, nil
 }
 
-func (s *Implementation) ListAuctions(ctx context.Context, req *auction_api.ListAuctionsRequest) (*auction_api.ListAuctionsResponse, error) {
-	return &auction_api.ListAuctionsResponse{}, nil
+func (s *AuctionService) ListAuctions(ctx context.Context, req *emptypb.Empty) (*auction_api.ListAuctionsResponse, error) {
+	auctions, err := s.repo.ListAuctions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &auction_api.ListAuctionsResponse{Auctions: auctions}, nil
 }

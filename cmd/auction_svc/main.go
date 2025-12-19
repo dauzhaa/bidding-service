@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/students-api/bidding-service/internal/pb/auction_api"
 	"github.com/students-api/bidding-service/internal/services/auction_service"
+	"github.com/students-api/bidding-service/internal/storage/auction_repo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -25,14 +26,18 @@ func getEnv(key, fallback string) string {
 func main() {
 	ctx := context.Background()
 
-	dsn := getEnv("DB_SHARD_1_DSN", "postgres://user:password@localhost:5432/auction_db_1")
+	dbHost := getEnv("DB_HOST", "localhost")
+	dsn := "postgres://user:password@" + dbHost + ":5432/auction_db_1"
+	
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v", err)
 	}
 	defer pool.Close()
 
-	svc := auction_service.NewAuctionService(pool)
+	repo := auction_repo.NewPostgresRepository(pool)
+	
+	svc := auction_service.NewAuctionService(repo)
 
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {
