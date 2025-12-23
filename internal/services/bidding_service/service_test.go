@@ -5,88 +5,84 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 	"github.com/students-api/bidding-service/internal/pb/bidding_api"
 	"github.com/students-api/bidding-service/internal/services/bidding_service"
 	"github.com/students-api/bidding-service/internal/services/bidding_service/mocks"
 )
 
-func TestPlaceBid_Success(t *testing.T) {
-	mockRepo := new(mocks.BidRepository)
-	mockProducer := new(mocks.EventSender)
-	mockLock := new(mocks.LockService)
+type BiddingServiceSuite struct {
+	suite.Suite
+	mockRepo     *mocks.BidRepository
+	mockProducer *mocks.EventSender
+	mockLock     *mocks.LockService
+	service      bidding_api.BiddingServiceServer
+}
 
-	mockLock.On("AcquireLock", mock.Anything, int64(100)).Return(true, nil)
-	mockLock.On("ReleaseLock", mock.Anything, int64(100)).Return(nil)
-	mockRepo.On("CreateBid", mock.Anything, mock.MatchedBy(func(b interface{}) bool {
-		return true 
+func (s *BiddingServiceSuite) SetupTest() {
+	s.mockRepo = new(mocks.BidRepository)
+	s.mockProducer = new(mocks.EventSender)
+	s.mockLock = new(mocks.LockService)
+
+	s.service = bidding_service.NewBiddingService(s.mockRepo, s.mockProducer, s.mockLock)
+}
+
+func (s *BiddingServiceSuite) TestPlaceBid_Success() {
+	s.mockLock.On("AcquireLock", mock.Anything, int64(100)).Return(true, nil)
+	s.mockLock.On("ReleaseLock", mock.Anything, int64(100)).Return(nil)
+	s.mockRepo.On("CreateBid", mock.Anything, mock.MatchedBy(func(b interface{}) bool {
+		return true
 	})).Return(nil)
-	mockProducer.On("SendBidPlaced", mock.Anything).Return(nil)
-
-	service := bidding_service.NewBiddingService(mockRepo, mockProducer, mockLock)
+	s.mockProducer.On("SendBidPlaced", mock.Anything).Return(nil)
 
 	req := &bidding_api.PlaceBidRequest{AuctionId: 100, UserId: 1, Amount: 1000}
-	resp, err := service.PlaceBid(context.Background(), req)
+	resp, err := s.service.PlaceBid(context.Background(), req)
 
-	assert.NoError(t, err)
-	assert.True(t, resp.Success)
-	assert.Equal(t, "Ставка принята", resp.Message)
+	s.NoError(err)
+	s.True(resp.Success)
+	s.Equal("Ставка принята", resp.Message)
 
-	mockRepo.AssertExpectations(t)
-	mockProducer.AssertExpectations(t)
+	s.mockRepo.AssertExpectations(s.T())
+	s.mockProducer.AssertExpectations(s.T())
 }
 
-func TestPlaceBid_InvalidAmount(t *testing.T) {
-	mockRepo := new(mocks.BidRepository)
-	mockProducer := new(mocks.EventSender)
-	mockLock := new(mocks.LockService)
-
-	service := bidding_service.NewBiddingService(mockRepo, mockProducer, mockLock)
-
+func (s *BiddingServiceSuite) TestPlaceBid_InvalidAmount() {
 	req := &bidding_api.PlaceBidRequest{AuctionId: 100, Amount: -500}
-	resp, err := service.PlaceBid(context.Background(), req)
+	resp, err := s.service.PlaceBid(context.Background(), req)
 
-	assert.NoError(t, err)
-	assert.False(t, resp.Success)
-	assert.Contains(t, resp.Message, "больше нуля")
+	s.NoError(err)
+	s.False(resp.Success)
+	s.Contains(resp.Message, "больше нуля")
 
-	mockRepo.AssertNotCalled(t, "CreateBid")
+	s.mockRepo.AssertNotCalled(s.T(), "CreateBid")
 }
 
-func TestPlaceBid_Locked(t *testing.T) {
-	mockRepo := new(mocks.BidRepository)
-	mockProducer := new(mocks.EventSender)
-	mockLock := new(mocks.LockService)
-
-	mockLock.On("AcquireLock", mock.Anything, int64(100)).Return(false, nil)
-
-	service := bidding_service.NewBiddingService(mockRepo, mockProducer, mockLock)
+func (s *BiddingServiceSuite) TestPlaceBid_Locked() {
+	s.mockLock.On("AcquireLock", mock.Anything, int64(100)).Return(false, nil)
 
 	req := &bidding_api.PlaceBidRequest{AuctionId: 100, Amount: 1000}
-	resp, err := service.PlaceBid(context.Background(), req)
+	resp, err := s.service.PlaceBid(context.Background(), req)
 
-	assert.NoError(t, err)
-	assert.False(t, resp.Success)
-	assert.Contains(t, resp.Message, "Сервер перегружен")
+	s.NoError(err)
+	s.False(resp.Success)
+	s.Contains(resp.Message, "Сервер перегружен")
 }
 
-func TestPlaceBid_DBError(t *testing.T) {
-	mockRepo := new(mocks.BidRepository)
-	mockProducer := new(mocks.EventSender)
-	mockLock := new(mocks.LockService)
-
-	mockLock.On("AcquireLock", mock.Anything, int64(100)).Return(true, nil)
-	mockLock.On("ReleaseLock", mock.Anything, int64(100)).Return(nil)
+func (s *BiddingServiceSuite) TestPlaceBid_DBError() {
+	s.mockLock.On("AcquireLock", mock.Anything, int64(100)).Return(true, nil)
+	s.mockLock.On("ReleaseLock", mock.Anything, int64(100)).Return(nil)
 	
-	mockRepo.On("CreateBid", mock.Anything, mock.Anything).Return(errors.New("db error"))
-
-	service := bidding_service.NewBiddingService(mockRepo, mockProducer, mockLock)
+	s.mockRepo.On("CreateBid", mock.Anything, mock.Anything).Return(errors.New("db error"))
 
 	req := &bidding_api.PlaceBidRequest{AuctionId: 100, Amount: 1000}
-	resp, err := service.PlaceBid(context.Background(), req)
+	resp, err := s.service.PlaceBid(context.Background(), req)
 
-	assert.NoError(t, err)
-	assert.False(t, resp.Success)
-	assert.Contains(t, resp.Message, "Ошибка БД")
+	s.NoError(err)
+	s.False(resp.Success)
+	s.Contains(resp.Message, "Ошибка БД")
+}
+
+func TestBiddingServiceSuite(t *testing.T) {
+	suite.Run(t, new(BiddingServiceSuite))
 }
