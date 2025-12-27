@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
+	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/students-api/bidding-service/internal/pb/auction_api"
-	"github.com/students-api/bidding-service/internal/pb/bidding_api"
+	"github.com/students-api/bidding-service/internal/services/auction_service"
+	"github.com/students-api/bidding-service/internal/storage/auction_repo"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/reflection"
 )
 
 func getEnv(key, fallback string) string {
@@ -22,29 +25,40 @@ func getEnv(key, fallback string) string {
 
 func main() {
 	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-
-	biddingAddr := getEnv("BIDDING_SVC_ADDR", "localhost:50051")
-	auctionAddr := getEnv("AUCTION_SVC_ADDR", "localhost:50052")
-
-	log.Printf("Connecting to Bidding Service at %s", biddingAddr)
-	err := bidding_api.RegisterBiddingServiceHandlerFromEndpoint(ctx, mux, biddingAddr, opts)
+	// ИСПРАВЛЕНИЕ: Используем переменную DB_SHARD_1_DSN, которая задана в docker-compose
+	dsn := getEnv("DB_SHARD_1_DSN", "postgres://user:password@localhost:5432/auction_db_1")
+	
+	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
-		log.Fatalf("Failed to register Bidding Service: %v", err)
+		log.Fatalf("Unable to connect to database: %v", err)
 	}
+	defer pool.Close()
 
-	log.Printf("Connecting to Auction Service at %s", auctionAddr)
-	err = auction_api.RegisterAuctionServiceHandlerFromEndpoint(ctx, mux, auctionAddr, opts)
+	repo := auction_repo.NewPostgresRepository(pool)
+	
+	svc := auction_service.NewAuctionService(repo)
+
+	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {
-		log.Fatalf("Failed to register Auction Service: %v", err)
+		log.Fatalf("failed to listen: %v", err)
 	}
 
-	log.Println("HTTP Gateway listening on :8081")
-	if err := http.ListenAndServe(":8081", mux); err != nil {
-		log.Fatalf("Failed to listen: %v", err)
-	}
+	grpcServer := grpc.NewServer()
+	auction_api.RegisterAuctionServiceServer(grpcServer, svc)
+	reflection.Register(grpcServer)
+
+	go func() {
+		log.Println("Starting Auction Service on :50052")
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+	<-quit
+
+	log.Println("Shutting down Auction Service...")
+	grpcServer.GracefulStop()
 }

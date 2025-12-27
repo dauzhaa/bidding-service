@@ -1,5 +1,6 @@
 {
   "swagger": "2.0",
+  "host": "localhost:8081",
   "info": {
     "title": "bidding.proto",
     "version": "version not set"

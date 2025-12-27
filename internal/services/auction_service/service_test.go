@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/students-api/bidding-service/internal/pb/auction_api"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type MockAuctionRepository struct {
@@ -30,6 +29,7 @@ func (m *MockAuctionRepository) ListAuctions(ctx context.Context) ([]*auction_ap
 	return args.Get(0).([]*auction_api.Auction), args.Error(1)
 }
 
+
 func TestListAuctions_Success(t *testing.T) {
 	mockRepo := new(MockAuctionRepository)
 	service := NewAuctionService(mockRepo)
@@ -42,7 +42,7 @@ func TestListAuctions_Success(t *testing.T) {
 
 	mockRepo.On("ListAuctions", ctx).Return(expectedAuctions, nil)
 
-	resp, err := service.ListAuctions(ctx, &emptypb.Empty{})
+	resp, err := service.ListAuctions(ctx, &auction_api.ListAuctionsRequest{})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -57,7 +57,7 @@ func TestListAuctions_RepoError(t *testing.T) {
 
 	mockRepo.On("ListAuctions", ctx).Return(nil, errors.New("database down"))
 
-	resp, err := service.ListAuctions(ctx, &emptypb.Empty{})
+	resp, err := service.ListAuctions(ctx, &auction_api.ListAuctionsRequest{})
 
 	assert.Error(t, err)
 	assert.Nil(t, resp)
@@ -89,11 +89,11 @@ func TestCreateAuction_Success(t *testing.T) {
 
 	mockRepo.On("CreateAuction", ctx, mock.AnythingOfType("*auction_api.Auction")).Return(nil)
 
-	auction, err := service.CreateAuction(ctx, req)
+	response, err := service.CreateAuction(ctx, req)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, auction)
-	assert.Equal(t, "Wheat Field", auction.Title)
+	assert.NotNil(t, response)
+	assert.Equal(t, "Wheat Field", response.Title)
 	mockRepo.AssertExpectations(t)
 }
 
@@ -108,10 +108,10 @@ func TestCreateAuction_ApiError(t *testing.T) {
 	service.APIURL = mockServer.URL
 
 	req := &auction_api.CreateAuctionRequest{ObjectId: 999}
-	auction, err := service.CreateAuction(context.Background(), req)
+	response, err := service.CreateAuction(context.Background(), req)
 
 	assert.Error(t, err)
-	assert.Nil(t, auction)
+	assert.Nil(t, response)
 	assert.Contains(t, err.Error(), "Met API returned status: 404")
 }
 
@@ -129,10 +129,10 @@ func TestCreateAuction_RepoError(t *testing.T) {
 	mockRepo.On("CreateAuction", mock.Anything, mock.Anything).Return(errors.New("insert failed"))
 
 	req := &auction_api.CreateAuctionRequest{ObjectId: 1}
-	auction, err := service.CreateAuction(context.Background(), req)
+	response, err := service.CreateAuction(context.Background(), req)
 
 	assert.Error(t, err)
-	assert.Nil(t, auction)
+	assert.Nil(t, response)
 	assert.Contains(t, err.Error(), "insert failed")
 }
 
@@ -150,11 +150,11 @@ func TestCreateAuction_DefaultValues(t *testing.T) {
 	mockRepo.On("CreateAuction", mock.Anything, mock.Anything).Return(nil)
 
 	req := &auction_api.CreateAuctionRequest{ObjectId: 2}
-	auction, err := service.CreateAuction(context.Background(), req)
+	response, err := service.CreateAuction(context.Background(), req)
 
 	assert.NoError(t, err)
-	assert.Equal(t, "Unknown Title", auction.Title)
-	assert.Equal(t, "Unknown Artist", auction.Artist)
+	assert.Equal(t, "Unknown Title", response.Title)
+	assert.Equal(t, "Unknown Artist", response.Artist)
 }
 
 func TestCreateAuction_InvalidJSON(t *testing.T) {
@@ -169,9 +169,9 @@ func TestCreateAuction_InvalidJSON(t *testing.T) {
 	service.APIURL = mockServer.URL
 
 	req := &auction_api.CreateAuctionRequest{ObjectId: 3}
-	auction, err := service.CreateAuction(context.Background(), req)
+	response, err := service.CreateAuction(context.Background(), req)
 
 	assert.Error(t, err)
-	assert.Nil(t, auction)
+	assert.Nil(t, response)
 	assert.Contains(t, err.Error(), "failed to decode")
 }

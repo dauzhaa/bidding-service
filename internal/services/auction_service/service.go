@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/students-api/bidding-service/internal/pb/auction_api"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type AuctionService struct {
@@ -31,7 +30,7 @@ type MetObject struct {
 	PrimaryImage string `json:"primaryImage"`
 }
 
-func (s *AuctionService) CreateAuction(ctx context.Context, req *auction_api.CreateAuctionRequest) (*auction_api.Auction, error) {
+func (s *AuctionService) CreateAuction(ctx context.Context, req *auction_api.CreateAuctionRequest) (*auction_api.CreateAuctionResponse, error) {
 	url := fmt.Sprintf("%s/%d", s.APIURL, req.ObjectId)
 	
 	resp, err := http.Get(url)
@@ -70,10 +69,15 @@ func (s *AuctionService) CreateAuction(ctx context.Context, req *auction_api.Cre
 		return nil, err
 	}
 
-	return auction, nil
+	return &auction_api.CreateAuctionResponse{
+		AuctionId: auction.Id,
+		Title:     auction.Title,
+		Artist:    auction.Artist,
+		ImageUrl:  auction.ImageUrl,
+	}, nil
 }
 
-func (s *AuctionService) ListAuctions(ctx context.Context, req *emptypb.Empty) (*auction_api.ListAuctionsResponse, error) {
+func (s *AuctionService) ListAuctions(ctx context.Context, req *auction_api.ListAuctionsRequest) (*auction_api.ListAuctionsResponse, error) {
 	auctions, err := s.repo.ListAuctions(ctx)
 	if err != nil {
 		return nil, err
