@@ -26,17 +26,17 @@ func getEnv(key, fallback string) string {
 func main() {
 	ctx := context.Background()
 
-	dbHost := getEnv("DB_HOST", "localhost")
-	dsn := "postgres://user:password@" + dbHost + ":5432/auction_db_1"
+	dsn := getEnv("DB_SHARD_1_DSN", "postgres://user:password@localhost:5432/auction_db_1")
 	
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v", err)
 	}
 	defer pool.Close()
+	
+	log.Printf("Connected to database successfully")
 
 	repo := auction_repo.NewPostgresRepository(pool)
-	
 	svc := auction_service.NewAuctionService(repo)
 
 	lis, err := net.Listen("tcp", ":50052")

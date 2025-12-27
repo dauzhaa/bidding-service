@@ -1,6 +1,7 @@
 {
   "swagger": "2.0",
   "host": "localhost:8081",
+  "schemes": ["http"],
   "info": {
     "title": "auction.proto",
     "version": "version not set"
